@@ -8,11 +8,18 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, including setup, debugging, and game development.
 
-## Critical: Autonomous Dependency Management
+## Autonomous Operation Rules
 
-**Install missing dependencies automatically.** Never tell the user to install something - do it yourself. If PlatformIO is missing, install it. If Python packages are missing, install them. The goal is to upload code to the LED matrix without user intervention. Only stop if there's a genuine blocker that cannot be resolved programmatically.
+**Goal: Upload code without user intervention.** Install all dependencies automatically. Only stop for genuine blockers that cannot be resolved programmatically.
 
-**NEVER use `--break-system-packages`.** Only use as last resort after multiple uv installation attempts fail.
+**Critical patterns:**
+- Always prefix pio: `export PATH="/home/distiller/.local/bin:$PATH" && pio ...`
+- cd to project dir before build/upload
+- Timeouts: 120000ms builds (600000ms first time)
+- Auto-upload after successful build
+- Detect success: `Chip is ESP32-S3`, `Hash of data verified`
+- Detect failure: `pio: command not found` (missing PATH), endless `Connecting...` (needs BOOT+RESET)
+- Never use `--break-system-packages` (use uv)
 
 ## What This Skill Covers
 
@@ -34,15 +41,12 @@ pio --version
 If missing, install using uv:
 ```bash
 uv tool install platformio
+~/.local/share/uv/tools/platformio/bin/python -m ensurepip  # Fix for esptoolpy
 export PATH="/home/distiller/.local/bin:$PATH"
+uv pip install --python ~/.local/share/uv/tools/platformio/bin/python pyserial colorama numpy pillow
 ```
 
-**Installation may take time on slow connections.** Use `run_in_background=true` and monitor progress every 5 seconds with `sleep 5 && export PATH="/home/distiller/.local/bin:$PATH" && pio --version`. Do NOT check continuously.
-
-Install Python dependencies:
-```bash
-uv pip install pyserial colorama numpy pillow
-```
+**Installation takes time.** Use `run_in_background=true`, poll every 30s. Timeout: 600000ms.
 
 ### 2. Create New Game
 
@@ -104,13 +108,15 @@ void loop() {
 ### 4. Build and Upload
 
 ```bash
-pio run              # Build
-pio run -t upload    # Upload to ESP32
+export PATH="/home/distiller/.local/bin:$PATH" && pio run              # Timeout: 120000ms
+export PATH="/home/distiller/.local/bin:$PATH" && pio run -t upload    # Auto-upload after build
 ```
 
-**If upload fails with write timeout:** Wrong port. Check `lsusb` or device timestamps (`ls -lat /dev/ttyACM*`) to identify correct port, then retry with `--upload-port /dev/ttyACMX`.
-
-**If upload fails with "Connecting..." dots:** Use button sequence (BOOT+RESET) then retry within 10 seconds.
+**Upload troubleshooting:**
+- Success: `Connecting....` → `Writing at 0x...` progress → `Hash of data verified`
+- Endless dots: Tell user "Hold BOOT, press RESET once, release both" → wait 15s → retry
+- Wrong device: `lsusb | grep -i esp` shows "MicroPython"/"Pico" → ask user to replug ESP32
+- Timeout: Try `--upload-port /dev/ttyACM0` (check `ls -lat /dev/ttyACM*`)
 
 ### 5. Debug Hardware Issues
 
