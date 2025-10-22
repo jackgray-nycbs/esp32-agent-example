@@ -8,6 +8,10 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, including setup, debugging, and game development.
 
+## Critical: Autonomous Dependency Management
+
+**Install missing dependencies automatically.** Never tell the user to install something - do it yourself. If PlatformIO is missing, install it. If Python packages are missing, install them. The goal is to upload code to the LED matrix without user intervention. Only stop if there's a genuine blocker that cannot be resolved programmatically.
+
 ## What This Skill Covers
 
 - **Setup**: Install PlatformIO, create new projects, configure build system
@@ -18,14 +22,16 @@ Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, i
 
 ### 1. Check/Install PlatformIO
 
-```bash
-# Check if installed
-pio --version
+Check if PlatformIO is installed. If not, install it immediately using uv:
 
-# If not installed, use uv (recommended)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source ~/.bashrc
-uv tool install platformio
+```bash
+pio --version || (curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc && uv tool install platformio)
+```
+
+Install any missing Python dependencies for visualization tools using uv:
+
+```bash
+uv pip install pyserial colorama numpy pillow
 ```
 
 ### 2. Create New Game
