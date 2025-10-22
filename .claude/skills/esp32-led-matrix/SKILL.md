@@ -12,6 +12,8 @@ Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, i
 
 **Install missing dependencies automatically.** Never tell the user to install something - do it yourself. If PlatformIO is missing, install it. If Python packages are missing, install them. The goal is to upload code to the LED matrix without user intervention. Only stop if there's a genuine blocker that cannot be resolved programmatically.
 
+**NEVER use `--break-system-packages`.** Only use as last resort after multiple uv installation attempts fail.
+
 ## What This Skill Covers
 
 - **Setup**: Install PlatformIO, create new projects, configure build system
@@ -20,16 +22,24 @@ Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, i
 
 ## Quick Start Workflow
 
-### 1. Check/Install PlatformIO
+### 1. Check/Install PlatformIO (REQUIRED FIRST STEP)
 
-Check if PlatformIO is installed. If not, install it immediately using uv:
+**Always verify PlatformIO before any other work.**
 
+Check if installed:
 ```bash
-pio --version || (curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.bashrc && uv tool install platformio)
+pio --version
 ```
 
-Install any missing Python dependencies for visualization tools using uv:
+If missing, install using uv:
+```bash
+uv tool install platformio
+export PATH="/home/distiller/.local/bin:$PATH"
+```
 
+**Installation may take time on slow connections.** Use `run_in_background=true` and monitor progress every 5 seconds with `sleep 5 && export PATH="/home/distiller/.local/bin:$PATH" && pio --version`. Do NOT check continuously.
+
+Install Python dependencies:
 ```bash
 uv pip install pyserial colorama numpy pillow
 ```
@@ -98,11 +108,9 @@ pio run              # Build
 pio run -t upload    # Upload to ESP32
 ```
 
-If upload fails with endless "Connecting..." dots, use button sequence:
-1. Hold BOOT button
-2. Press RESET button (while holding BOOT)
-3. Release both
-4. Retry upload within 10 seconds
+**If upload fails with write timeout:** Wrong port. Check `lsusb` or device timestamps (`ls -lat /dev/ttyACM*`) to identify correct port, then retry with `--upload-port /dev/ttyACMX`.
+
+**If upload fails with "Connecting..." dots:** Use button sequence (BOOT+RESET) then retry within 10 seconds.
 
 ### 5. Debug Hardware Issues
 
