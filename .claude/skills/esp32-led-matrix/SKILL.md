@@ -18,8 +18,9 @@ Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, i
 - Timeouts: 120000ms builds (600000ms first time)
 - Auto-upload after successful build
 - Detect success: `Chip is ESP32-S3`, `Hash of data verified`
-- Detect failure: `pio: command not found` (missing PATH), endless `Connecting...` (needs BOOT+RESET)
+- Detect failure: `pio: command not found` (missing PATH), permission denied or timeout (wrong port)
 - Never use `--break-system-packages` (use uv)
+- **Port selection:** Device has two MCUs. One is permission-protected (internal). Check `ls -la /dev/ttyACM*` - use the port with open permissions (`root:dialout` or `0666`), not the restricted one (`root:root`).
 
 ## What This Skill Covers
 
@@ -31,22 +32,11 @@ Complete workflow for developing LED matrix games on ESP32-S3 with PlatformIO, i
 
 ### 1. Check/Install PlatformIO (REQUIRED FIRST STEP)
 
-**Always verify PlatformIO before any other work.**
-
-Check if installed:
 ```bash
-pio --version
+bash scripts/install-pio.sh
 ```
 
-If missing, install using uv:
-```bash
-uv tool install platformio
-~/.local/share/uv/tools/platformio/bin/python -m ensurepip  # Fix for esptoolpy
-export PATH="/home/distiller/.local/bin:$PATH"
-uv pip install --python ~/.local/share/uv/tools/platformio/bin/python pyserial colorama numpy pillow
-```
-
-**Installation takes time.** Use `run_in_background=true`, poll every 30s. Timeout: 600000ms.
+Installs PlatformIO via uv with esptoolpy fixes. Skips if already installed. Timeout: 600000ms for first install.
 
 ### 2. Create New Game
 
@@ -109,14 +99,14 @@ void loop() {
 
 ```bash
 export PATH="/home/distiller/.local/bin:$PATH" && pio run              # Timeout: 120000ms
-export PATH="/home/distiller/.local/bin:$PATH" && pio run -t upload    # Auto-upload after build
+export PATH="/home/distiller/.local/bin:$PATH" && pio run -t upload --upload-port $(bash scripts/find-esp32-port.sh)
 ```
 
 **Upload troubleshooting:**
 - Success: `Connecting....` → `Writing at 0x...` progress → `Hash of data verified`
-- Endless dots: Tell user "Hold BOOT, press RESET once, release both" → wait 15s → retry
+- Permission denied or timeout: Wrong port. The `find-esp32-port.sh` script detects the correct port (open permissions, not the protected internal MCU).
 - Wrong device: `lsusb | grep -i esp` shows "MicroPython"/"Pico" → ask user to replug ESP32
-- Timeout: Try `--upload-port /dev/ttyACM0` (check `ls -lat /dev/ttyACM*`)
+- Note: PlatformIO auto-resets ESP32-S3 via RTS pin. BOOT+RESET button sequence is rarely needed.
 
 ### 5. Debug Hardware Issues
 
@@ -177,7 +167,7 @@ MU_DrawCalibration(leds); // Corner markers
 | Display rotated | `PANEL_ROTATION` in BoardConfig.h |
 | Display mirrored | `PANEL_FLIP_X/Y` in BoardConfig.h |
 | Pattern scrambled | Always use `MU_XY(x,y)` |
-| Upload timeout | Button sequence: BOOT+RESET |
+| Upload timeout/permission denied | Wrong port - use `bash scripts/find-esp32-port.sh` |
 | Include errors | Use `<BoardConfig.h>` not quotes |
 | Flash size error | Use `board = adafruit_feather_esp32s3` |
 
